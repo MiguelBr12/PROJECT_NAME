@@ -25,8 +25,8 @@ void task3()
         lENTO,
         MEDIO,
         RAPIDO,
-        APAGADO,
-        ENCENDIDO,
+        PERMANENTEMENTE_APAGADO,
+        PERMANENTEMENTE_ENCENDIDO,
         ESPERAR_A_APAGADO, // Estado para pasar de modo, esperando a que termine de apagarse
         ESPERAR_A_ENCENDIDO, // Estado para pasar de modo, esperando a que termine de encenderse
     };
@@ -40,6 +40,7 @@ void task3()
     static constexpr uint32_t FAST_TIME = 125;
 
     static bool ledStatus = false;
+    static bool pregunta_apagado = false; //Variable para preguntar si la led esta apagada
 
    
     static BUTTONS secret[5] = {BUTTONS::ONE_BUTTON, BUTTONS::ONE_BUTTON,
@@ -58,90 +59,132 @@ void task3()
 
         pinMode(ledBlue, OUTPUT)
         digitalWrite(ledBlue, LOW);
-        keyCounter = 0;
-        taskState = TaskStates::WAIT_CONFIG;
+       
+        taskState = TaskStates::LENTO;
         break;
     }
-    case TaskStates::WAIT_CONFIG:
+    case TaskStates::LENTO:
     {
+        uint32_t currentTime = millis ();
+        if ((currentTime - lasTime) >= SLOW_TIME)
+        {
+            lasTime = currentTime;
+            digitalWrite(ledBlue, ledStatus);
+            ledStatus = !ledStatus;
+            if (buttonEvt.trigger == true)
+            {
+                buttonEvt.trigger = false;
+                if (buttonEvt.whichButton == BUTTONS::ONE_BTN)
+                {
+                    taskState = TaskStates::PERMANENTEMENTE_APAGADO;
+                }
+                else if (buttonEvt.whichButton == BUTTONS::TWO_BTN)
+                {
+                    taskState = TaskStates::MEDIO;
+                }
+            }
+        }
 
+        break;
+    }
+    case TaskStates::APAGADO:
+    {
+        digitalWrite(ledBlue, ledStatus);
+        ledStatus = false;
         if (buttonEvt.trigger == true)
         {
             buttonEvt.trigger = false;
             if (buttonEvt.whichButton == BUTTONS::ONE_BUTTON)
             {
-                if (bombCounter < 60)
-                    bombCounter++;
+                taskState = TaskStates::LENTO;
             }
-            else if (buttonEvt.whichButton == BUTTONS::TWO_BUTTON)
+            else if (buttonEvt.whichButton == BUTTONS::TWO_BTN)
             {
-                if (bombCounter > 10)
-                    bombCounter--;
+                Pregunta_Apagado = true;
+                taskState = TaskStates::RAPIDO;
             }
-            else if (buttonEvt.whichButton == BUTTONS::ARM_BTN)
-            {
-                initLedCounterTimer = millis();
-                initBombTimer = millis();
-                keyCounter = 0;
-                taskState = TaskStates::COUNTING;
-            }
-            Serial.print("Counter: ");
-            Serial.print(bombCounter);
-            Serial.print("\n");
         }
 
         break;
     }
-    case TaskStates::COUNTING:
+
+    case TaskStates::MEDIO:
     {
-
-        uint32_t timeNow = millis();
-
-        if ((timeNow - initBombTimer) > BOMBINTERVAL)
+        uint32_t currentTime = millis();
+        if ((currentTime - lasTime) >= MEDIUM_TIME)
         {
-            initBombTimer = timeNow;
-            bombCounter--;
-            Serial.print("Counter: ");
-            Serial.print(bombCounter);
-            Serial.print("\n");
-            if (bombCounter == 0)
+            lasTime = currentTime;
+            digitalWrite(ledBlue, ledStatus);
+            ledStatus = !ledStatus;
+            if (buttonEvt.trigger == true)
             {
-                ledBombCountingState = HIGH;
-                Serial.print("BOMB BOOM\n");
-                digitalWrite(ledBombBoom, HIGH);
-                delay(2000);
-                digitalWrite(ledBombBoom, LOW);
-                digitalWrite(ledBombCounting, ledBombCountingState);
-                bombCounter = 20;
-                taskState = TaskStates::WAIT_CONFIG;
+                buttonEvt.trigger = false;
+                if (buttonEvt.whichButton == BUTTONS::ONE_BTN)
+                {
+                    taskState = TaskStates::PERMANENTEMENTE_ENCENDIDO;
+                }
+                else if (buttonEvt.whichButton == BUTTONS::TWO_BTN)
+                {
+                    taskState = TaskStates::LENTO;
+                }
             }
         }
-        if ((timeNow - initLedCounterTimer) > LEDCOUNTERINTERVAL)
+
+        break;
+    }
+    case TaskStates::ENCENDIDO:
+    {
+        digitalWrite(ledBlue, ledStatus);
+        ledStatus = true;
+        if (buttonEvt.trigger == true)
         {
-            initLedCounterTimer = timeNow;
-            ledBombCountingState = !ledBombCountingState;
-            digitalWrite(ledBombCounting, ledBombCountingState);
+            buttonEvt.trigger = false;
+            if (buttonEvt.whichButton == BUTTONS::ONE_BTN)
+            {
+                taskState = TaskStates::MEDIO;
+            }
+            else if (buttonEvt.whichButton == BUTTONS::TWO_BTN)
+            {
+                Pregunta_Apagado = false;
+                taskState = TaskStates::RAPIDO;
+            }
         }
 
+        break;
+    }
+    case TaskStates::RAPIDO:
+    {
+        uint32_t currentTime = millis();
+        if ((currentTime - lasTime) >= FAST_TIME)
+        {
+            lasTime = currentTime;
+            digitalWrite(ledBlue, ledStatus);
+            ledStatus = !ledStatus;
+        }
         if (buttonEvt.trigger == true)
         {
             buttonEvt.trigger = false;
             disarmKey[keyCounter] = buttonEvt.whichButton;
             keyCounter++;
-            if (keyCounter == 7)
+            if (keyCounter == 5)
             {
                 keyCounter = 0;
                 if (compareKeys(secret, disarmKey) == true)
                 {
-                    ledBombCountingState = HIGH;
-                    digitalWrite(ledBombCounting, ledBombCountingState);
-                    Serial.print("BOMB DISARM\n");
-                    bombCounter = 20;
-                    taskState = TaskStates::WAIT_CONFIG;
+
+                    Serial.print("salir de modo rápido\n");
+
+                    if (Pregunta_Apagado == true)
+                    {
+                        taskState = TaskStates::APAGADO;
+                    }
+                    else
+                    {
+                        taskState = TaskStates::PERMANENTEMENTE_ENCENDIDO;
+                    }
                 }
             }
         }
-
         break;
     }
     default:
