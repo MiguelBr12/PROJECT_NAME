@@ -35,22 +35,22 @@ void task3()
     static uint8_t ledBlue = 26; //Declaro la posición de la led
 
     static uint32_t lasTime;
-    static constexpr uint32_t SLOW_TIME = 500;
-    static constexpr uint32_t MEDIUM_TIME = 250;
-    static constexpr uint32_t FAST_TIME = 125;
+    static constexpr uint32_t SLOW_TIME = 500; //Cantidad de tiempo que se demora
+    static constexpr uint32_t MEDIUM_TIME = 250; //Cantidad de tiempo que se demora
+    static constexpr uint32_t FAST_TIME = 125; //Cantidad de tiempo que se demora
 
-    static bool ledStatus = false;
+    static bool ledStatus = false; 
     static bool pregunta_apagado = false; //Variable para preguntar si la led esta apagada
 
    
     static BUTTONS secret[5] = {BUTTONS::ONE_BUTTON, BUTTONS::ONE_BUTTON,
                                 BUTTONS::TWO_BUTTON, BUTTONS::TWO_BUTTON,
                                 BUTTONS::ONE_BUTTON, 
-                                };
+                                }; // Codigo para salir del modo rapido
 
     static BUTTONS disarmKey[5] = {BUTTONS::NONE};
 
-    static uint8_t keyCounter; 
+    static uint8_t keyCounter; <
 
     switch (taskState)
     {
@@ -66,7 +66,7 @@ void task3()
     case TaskStates::LENTO:
     {
         uint32_t currentTime = millis ();
-        if ((currentTime - lasTime) >= SLOW_TIME)
+        if ((currentTime - lasTime) >= SLOW_TIME)ñ
         {
             lasTime = currentTime;
             digitalWrite(ledBlue, ledStatus);
