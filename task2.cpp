@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include "task2.h"
+#include "events.h"
 
 void task2()
 {
@@ -49,10 +50,9 @@ void task2()
             taskState = TaskState::WAIT_PRESS;
         }
         else if ( (millis() - initStableTime) > STABLE_TIME){
-            if(lastButtonPressed == ONE_BTN_PIN) buttonEvt.whichButton = BUTTONS::ONE_BTN_PIN;
-            else if(lastButtonPressed == TWO_BTN_PIN) buttonEvt.whichButton = BUTTONS::TWO_BTN_PIN
+            if(lastButtonPressed == ONE_BTN_PIN) buttonEvt.whichButton = BUTTONS::ONE_BTN;
+            else if(lastButtonPressed == TWO_BTN_PIN) buttonEvt.whichButton = BUTTONS::TWO_BTN;
             buttonEvt.trigger = true;
-            //printf("Button pressed: %d\n", lastButtonPressed);
             taskState = TaskState::WAIT_RELEASE;
         }
         break;

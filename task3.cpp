@@ -1,12 +1,14 @@
 #include <Arduino.h>
 #include "task3.h"
+#include "events.h"
 
 static bool compareKeys(BUTTONS *pSecret, BUTTONS *pKey)
 {
     bool correct = true;
     for (uint8_t i = 0; i < 5; i++)
     {
-        if (pSecret[i] != pKey[i]){
+        if (pSecret[i] != pKey[i])
+        {
             correct = false;
             break;
         }
@@ -22,85 +24,98 @@ void task3()
     {
         INIT,
         WAIT_CONFIG,
-        lENTO,
+        LENTO,
         MEDIO,
         RAPIDO,
         PERMANENTEMENTE_APAGADO,
         PERMANENTEMENTE_ENCENDIDO,
-        ESPERAR_A_APAGADO, // Estado para pasar de modo, esperando a que termine de apagarse
-        ESPERAR_A_ENCENDIDO, // Estado para pasar de modo, esperando a que termine de encenderse
+        ESPERAR_ENCENDIDO,
+        ESPERAR_APAGADO,
     };
     static TaskStates taskState = TaskStates::INIT;
 
-    static uint8_t ledBlue = 26; //Declaro la posición de la led
+    static uint8_t ledBlue = 26; // Declaro la posición de la led
 
     static uint32_t lasTime;
-    static constexpr uint32_t SLOW_TIME = 500; //Cantidad de tiempo que se demora
-    static constexpr uint32_t MEDIUM_TIME = 250; //Cantidad de tiempo que se demora
-    static constexpr uint32_t FAST_TIME = 125; //Cantidad de tiempo que se demora
+    static constexpr uint32_t SLOW_TIME = 500;   // Cantidad de tiempo que se demora
+    static constexpr uint32_t MEDIUM_TIME = 250; // Cantidad de tiempo que se demora
+    static constexpr uint32_t FAST_TIME = 125;   // Cantidad de tiempo que se demora
 
-    static bool ledStatus = false; 
-    static bool pregunta_apagado = false; //Variable para preguntar si la led esta apagada
+    static bool ledStatus = false;
+    static bool pregunta_apagado = false; // Variable para preguntar si la led esta apagada o si la led estaba prendida
 
-   
-    static BUTTONS secret[5] = {BUTTONS::ONE_BUTTON, BUTTONS::ONE_BUTTON,
-                                BUTTONS::TWO_BUTTON, BUTTONS::TWO_BUTTON,
-                                BUTTONS::ONE_BUTTON, 
-                                }; // Codigo para salir del modo rapido
+    static BUTTONS secret[5] = {BUTTONS::ONE_BTN, BUTTONS::ONE_BTN,
+                                BUTTONS::TWO_BTN, BUTTONS::TWO_BTN,
+                                BUTTONS::ONE_BTN}; // Codigo para salir del modo rapido
 
     static BUTTONS disarmKey[5] = {BUTTONS::NONE};
 
-    static uint8_t keyCounter; <
+    static uint8_t keyCounter;
 
     switch (taskState)
     {
     case TaskStates::INIT:
     {
 
-        pinMode(ledBlue, OUTPUT)
+        pinMode(ledBlue, OUTPUT);
         digitalWrite(ledBlue, LOW);
-       
+
         taskState = TaskStates::LENTO;
         break;
     }
+
     case TaskStates::LENTO:
     {
-        uint32_t currentTime = millis ();
-        if ((currentTime - lasTime) >= SLOW_TIME)ñ
+        uint32_t currentTime = millis();
+        if ((currentTime - lasTime) >= SLOW_TIME)
         {
             lasTime = currentTime;
-            digitalWrite(ledBlue, ledStatus);
             ledStatus = !ledStatus;
-            if (buttonEvt.trigger == true)
+            digitalWrite(ledBlue, ledStatus);
+            
+        }
+
+        if (buttonEvt.trigger == true)
+        {
+            buttonEvt.trigger = false;
+            if (buttonEvt.whichButton == BUTTONS::ONE_BTN)
             {
-                buttonEvt.trigger = false;
-                if (buttonEvt.whichButton == BUTTONS::ONE_BTN)
-                {
-                    taskState = TaskStates::PERMANENTEMENTE_APAGADO;
-                }
-                else if (buttonEvt.whichButton == BUTTONS::TWO_BTN)
-                {
-                    taskState = TaskStates::MEDIO;
-                }
+                taskState = TaskStates::ESPERAR_APAGADO;
+            }
+            else if (buttonEvt.whichButton == BUTTONS::TWO_BTN)
+            {
+                taskState = TaskStates::MEDIO;
             }
         }
 
         break;
     }
-    case TaskStates::APAGADO:
+
+    case TaskStates::ESPERAR_APAGADO:
     {
+        uint32_t currentTime = millis();
+        if ((currentTime - lasTime) >= SLOW_TIME)
+        {
+            ledStatus = false;
         digitalWrite(ledBlue, ledStatus);
-        ledStatus = false;
+            taskState = TaskStates::PERMANENTEMENTE_APAGADO;
+        }
+    }
+    case TaskStates::PERMANENTEMENTE_APAGADO:
+    {
+         
         if (buttonEvt.trigger == true)
         {
             buttonEvt.trigger = false;
-            if (buttonEvt.whichButton == BUTTONS::ONE_BUTTON)
+            if (buttonEvt.whichButton == BUTTONS::ONE_BTN)
             {
+                
+                
                 taskState = TaskStates::LENTO;
             }
             else if (buttonEvt.whichButton == BUTTONS::TWO_BTN)
             {
-                Pregunta_Apagado = true;
+                pregunta_apagado = true;
                 taskState = TaskStates::RAPIDO;
             }
         }
@@ -116,26 +131,42 @@ void task3()
             lasTime = currentTime;
             digitalWrite(ledBlue, ledStatus);
             ledStatus = !ledStatus;
-            if (buttonEvt.trigger == true)
+        }
+        if (buttonEvt.trigger == true)
+        {
+            buttonEvt.trigger = false;
+            if (buttonEvt.whichButton == BUTTONS::ONE_BTN)
             {
-                buttonEvt.trigger = false;
-                if (buttonEvt.whichButton == BUTTONS::ONE_BTN)
-                {
-                    taskState = TaskStates::PERMANENTEMENTE_ENCENDIDO;
-                }
-                else if (buttonEvt.whichButton == BUTTONS::TWO_BTN)
-                {
-                    taskState = TaskStates::LENTO;
-                }
+                taskState = TaskStates::ESPERAR_ENCENDIDO;
+                    
+            }
+            else if (buttonEvt.whichButton == BUTTONS::TWO_BTN)
+            {
+                taskState = TaskStates::LENTO;
             }
         }
+        
 
         break;
     }
-    case TaskStates::ENCENDIDO:
+
+    case TaskStates::ESPERAR_ENCENDIDO:
     {
-        digitalWrite(ledBlue, ledStatus);
-        ledStatus = true;
+        uint32_t currentTime = millis();
+         if ((currentTime - lasTime) >= MEDIUM_TIME)
+         {
+            ledStatus = true;
+            digitalWrite(ledBlue, ledStatus);
+            taskState = TaskStates::PERMANENTEMENTE_ENCENDIDO;
+         }
+       
+        
+    }
+
+    case TaskStates::PERMANENTEMENTE_ENCENDIDO:
+    {
+        
+        
         if (buttonEvt.trigger == true)
         {
             buttonEvt.trigger = false;
@@ -145,7 +176,7 @@ void task3()
             }
             else if (buttonEvt.whichButton == BUTTONS::TWO_BTN)
             {
-                Pregunta_Apagado = false;
+                pregunta_apagado = false;
                 taskState = TaskStates::RAPIDO;
             }
         }
@@ -158,9 +189,12 @@ void task3()
         if ((currentTime - lasTime) >= FAST_TIME)
         {
             lasTime = currentTime;
-            digitalWrite(ledBlue, ledStatus);
+            
             ledStatus = !ledStatus;
+            digitalWrite(ledBlue, ledStatus);
+            
         }
+
         if (buttonEvt.trigger == true)
         {
             buttonEvt.trigger = false;
@@ -172,16 +206,20 @@ void task3()
                 if (compareKeys(secret, disarmKey) == true)
                 {
 
-                    Serial.print("salir de modo rápido\n");
+                    Serial.print("Regresar al modo anterior\n");
 
-                    if (Pregunta_Apagado == true)
+                    if (pregunta_apagado == true)
                     {
-                        taskState = TaskStates::APAGADO;
+                        taskState = TaskStates::PERMANENTEMENTE_APAGADO; // Si estaba apagado, regresa a estar apagado
                     }
                     else
                     {
-                        taskState = TaskStates::PERMANENTEMENTE_ENCENDIDO;
+                        taskState = TaskStates::PERMANENTEMENTE_ENCENDIDO; // Si estaba prendido, regresa a estar prendido
                     }
+                }
+                else
+                {
+                    Serial.print("Lo lamento, te equivocaste.\n");
                 }
             }
         }
